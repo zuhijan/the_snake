@@ -59,13 +59,13 @@ def handle_keys(game_object):
             raise SystemExit
         elif event.type == pg.KEYDOWN:
             if event.key == pg.K_UP and game_object.direction != DOWN:
-                game_object.next_direction = UP
+                return UP
             elif event.key == pg.K_DOWN and game_object.direction != UP:
-                game_object.next_direction = DOWN
+                return DOWN
             elif event.key == pg.K_LEFT and game_object.direction != RIGHT:
-                game_object.next_direction = LEFT
+                return LEFT
             elif event.key == pg.K_RIGHT and game_object.direction != LEFT:
-                game_object.next_direction = RIGHT
+                return RIGHT
 
 
 class GameObject:
@@ -89,9 +89,11 @@ class Apple(GameObject):
 
     def randomize_position(self, snake_positions):
         """Возвращает рандомную позицию"""
-        self.position = get_random_position()
-        while any(item == self.position for item in snake_positions):
+        running = True
+        while running:
             self.position = get_random_position()
+            if not any(item == self.position for item in snake_positions):
+                running = False
 
     def draw(self):
         """Отрисовывает яблоко"""
@@ -107,7 +109,6 @@ class Snake(GameObject):
         super().__init__(body_color)
         self.positions = [SCREEN_CENTER]
         self.direction = RIGHT
-        self.next_direction = None
         self.length = 1
         self.last = None
 
@@ -132,11 +133,10 @@ class Snake(GameObject):
         """Возвращает координаты головы змеи"""
         return self.positions[0]
 
-    def update_direction(self):
+    def update_direction(self, next_direction):
         """Обновляет направление движения"""
-        if self.next_direction:
-            self.direction = self.next_direction
-            self.next_direction = None
+        if next_direction:
+            self.direction = next_direction
 
     def move(self):
         """Обновляет позицию змейки и удаляет последний элемент"""
@@ -148,8 +148,7 @@ class Snake(GameObject):
         head_y = ((current_head_y + (direction_y * GRID_SIZE))
                   % SCREEN_HEIGHT)
 
-        head_position = (head_x, head_y)
-        self.positions.insert(0, head_position)
+        self.positions.insert(0, (head_x, head_y))
 
         if len(self.positions) > self.length:
             self.last = self.positions.pop()
@@ -173,13 +172,14 @@ def main():
             snake.length += 1
             apple.randomize_position(snake.positions)
 
-        handle_keys(snake)
-        snake.update_direction()
+        next_direction = handle_keys(snake)
+        snake.update_direction(next_direction)
         snake.move()
 
-        if any(item == snake.get_head_position() for
-               item in snake.positions[2:]):
+        if snake.get_head_position() in snake.positions[2:]:
+            screen.fill(BOARD_BACKGROUND_COLOR)
             snake.reset()
+            apple.randomize_position(snake.positions)
 
         apple.draw()
         snake.draw()
